@@ -15,7 +15,8 @@ on:
 #   DEBUG: '*'
 
 jobs:
-  build:
+  lint:
+    name: Lint code
     runs-on: macos-latest
     steps:
       - name: Check out Git repository
@@ -66,14 +67,6 @@ jobs:
       - name: Build app
         working-directory: ${{ env.WORKING_DIRECTORY }}
         run: yarn tvos
-  lint:
-    name: Lint code
-
-    steps:
-      - name: Checkout Git repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install Node.js, NPM and Yarn
         uses: actions/setup-node@v4.0.2
