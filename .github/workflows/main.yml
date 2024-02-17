@@ -15,9 +15,60 @@ on:
 #   DEBUG: '*'
 
 jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Restore Reanimated node_modules from cache
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-reanimated-${{ hashFiles('yarn.lock') }}
+          restore-keys: ${{ runner.os }}-node-modules-reanimated-
+
+      - name: Install Reanimated node_modules
+        run: yarn install --frozen-lockfile
+
+      - name: Restore app node_modules from cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.WORKING_DIRECTORY }}/node_modules
+          key: ${{ runner.os }}-node-modules-${{ env.WORKING_DIRECTORY }}-${{ hashFiles(format('{0}/yarn.lock', env.WORKING_DIRECTORY)) }}
+          restore-keys: ${{ runner.os }}-node-modules-${{ env.WORKING_DIRECTORY }}-
+
+      - name: Install app node_modules
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        run: yarn install --frozen-lockfile
+
+      - name: Restore Pods from cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ env.WORKING_DIRECTORY }}/ios/Pods
+            ~/Library/Caches/CocoaPods
+            ~/.cocoapods
+          key: ${{ runner.os }}-pods-${{ env.WORKING_DIRECTORY }}-${{ hashFiles(format('{0}/ios/Podfile.lock', env.WORKING_DIRECTORY)) }}
+
+      - name: Install Pods
+        working-directory: ${{ env.WORKING_DIRECTORY }}/ios
+        run: pod install
+
+      - name: Restore build artifacts from cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ env.WORKING_DIRECTORY }}/ios/build
+            ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-tvos-build-${{ env.WORKING_DIRECTORY }}-${{ hashFiles(format('{0}/ios/Podfile.lock', env.WORKING_DIRECTORY)) }}
+
+      - name: Build app
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        run: yarn tvos
   lint:
     name: Lint code
-    runs-on: tvos-latest
+
     steps:
       - name: Checkout Git repository
         uses: actions/checkout@v4
@@ -47,7 +98,7 @@ jobs:
 
   tests:
     name: Run playwright tests
-    runs-on: tvos-latest
+    runs-on: macos-latest
     needs: ['lint']
     steps:
       - name: Checkout Git repository
@@ -81,7 +132,7 @@ jobs:
 
   cachedeps:
     name: Generate cached sources
-    runs-on: tvos-latest
+    runs-on: macos-latest
     needs: ['tests']
 
     steps:
@@ -116,7 +167,7 @@ jobs:
 
   flatpak:
     name: Flatpak Build
-    runs-on: tvos-latest
+    runs-on: macos-latest
     needs: [cachedeps]
 
     container:
@@ -170,7 +221,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [tvos-latest]
+        os: [macos-latest]
 
     steps:
       - name: Checkout Git repository
@@ -210,7 +261,7 @@ jobs:
       - name: Publish tvOS APP
         uses: actions/upload-artifact@v4
         with:
-          name: greenlight-macos.dmg
+          name: greenlight-tvos.ipa
           path: |
             dist/*.ipa
-        if: matrix.os == 'tvos-latest' && contains(github.event.head_commit.message, '[build]')
+        if: matrix.os == 'macos-latest' && contains(github.event.head_commit.message, '[build]')
